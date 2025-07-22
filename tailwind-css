@@ -1,0 +1,23 @@
+/* Light (default) */
+.theme-light {
+  --tw-bg-opacity: 1;
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+/* Dark */
+.theme-dark {
+  background-color: #090a12;
+  color: #e5e7eb;
+}
+
+/* Green (custom, fun demo) */
+.theme-green {
+  background-color: #033d27 !important;
+  color: #b2f5ea !important;
+}
+.theme-green .bg-white { background-color: #044b32 !important; }
+.theme-green .bg-gray-50 { background-color: #04553a !important; }
+.theme-green .text-gray-900 { color: #bbf7d0 !important; }
+.theme-green .text-gray-600 { color: #6ee7b7 !important; }
+.theme-green .rounded-xl { border-radius: 1.25rem; }
