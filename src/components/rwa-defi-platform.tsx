@@ -1,4 +1,7 @@
-import React, { useState, useMemo } from 'react';
+'use client';
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Search, TrendingUp, Filter, Star, Zap, Wind, Sun, Battery, Leaf, Mountain,
   DollarSign, Users, Calendar, ArrowRight, PlusCircle, BarChart3, Globe,
@@ -7,6 +10,8 @@ import {
   ExternalLink, Copy, Lock, Unlock, Target, Briefcase, FileText,
   Database, GitBranch, Timer, Repeat, Network
 } from 'lucide-react';
+import { StakingPage } from './index';
+import { WalletConnectButton, CompactWalletButton } from './wallet-connect-button';
 
 /* ---------- Color themes ---------- */
 const themes = [
@@ -16,12 +21,6 @@ const themes = [
 ];
 
 /* ---------- Dummy data kept identical ---------- */
-const chains = [
-  { id: 'ethereum', name: 'Ethereum', symbol: 'ETH' },
-  { id: 'polygon', name: 'Polygon', symbol: 'MATIC' },
-  { id: 'arbitrum', name: 'Arbitrum', symbol: 'ARB' },
-  { id: 'base', name: 'Base', symbol: 'BASE' }
-];
 
 const assetTypes = [
   { id: 'all', label: 'All RWAs', icon: Globe },
@@ -199,12 +198,30 @@ const TokenCard = ({ token }: TokenCardProps) => (
 
 /* ---------- Main platform ---------- */
 const Web3RWAPlatform = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('market-overview');
+  
+  // Initialize activeTab from URL on component mount
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
+  
+  // Update URL when activeTab changes
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
   const [selectedAssetType, setSelectedAssetType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userToggledSidebar, setUserToggledSidebar] = useState(false);
-  const [selectedChain, setSelectedChain] = useState('ethereum');
+
   const [theme, setTheme] = useState('light');
   const [sortBy, setSortBy] = useState('apy');
 
@@ -237,11 +254,10 @@ const Web3RWAPlatform = () => {
   const filteredAssets = useMemo(() => {
     return tokenizedAssets.filter(token => {
       const matchesType = selectedAssetType === 'all' || normalizeType(token.type) === selectedAssetType;
-      const matchesChain = token.chain === selectedChain;
       const matchesSearch = token.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || token.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesType && matchesChain && matchesSearch;
+      return matchesType && matchesSearch;
     });
-  }, [selectedAssetType, selectedChain, searchQuery]);
+  }, [selectedAssetType, searchQuery]);
 
   const sortedAssets = useMemo(() => {
     const arr = [...filteredAssets];
@@ -252,7 +268,7 @@ const Web3RWAPlatform = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-200">
-      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} setUserToggledSidebar={setUserToggledSidebar} activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} setUserToggledSidebar={setUserToggledSidebar} activeTab={activeTab} setActiveTab={handleTabChange} />
       {sidebarOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => { setSidebarOpen(false); setUserToggledSidebar(true); }} />}
       <div className={`flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-80' : 'lg:ml-0'}`}>
         <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800 px-4 lg:px-8 py-4">
@@ -264,47 +280,37 @@ const Web3RWAPlatform = () => {
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
               
-              {/* Chain selector - always visible but smaller on mobile */}
-              <select value={selectedChain} onChange={e => setSelectedChain(e.target.value)} className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium">
-                {chains.map(c => <option key={c.id} value={c.id}>{c.symbol}</option>)}
-              </select>
-              
-              {/* Network status - hidden on mobile */}
+              {/* Network info - hidden on mobile */}
               <div className="hidden lg:block h-6 w-px bg-gray-300 dark:bg-gray-800"></div>
               <div className="hidden lg:flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full"></div><span>Network Active</span></div>
                 <div>Gas: 23 gwei</div><div>ETH: $2,847</div>
               </div>
             </div>
 
             {/* Right side */}
             <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
-              {/* Notifications - always visible */}
-              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg relative" aria-label="Notifications">
-                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
-              </button>
-              
-              {/* Wallet - responsive design */}
-              <div className="flex items-center gap-1 sm:gap-3 bg-gray-100 dark:bg-gray-800 rounded-lg px-2 sm:px-3 py-2">
-                <Wallet className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="font-semibold text-xs sm:text-sm">
-                  <span className="hidden sm:inline">0x1234...5678</span>
-                  <span className="sm:hidden">0x12...78</span>
-                </span>
-                <button className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-200">
-                  <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
-                </button>
+              {/* Wallet Connect - responsive design */}
+              <div className="hidden sm:block">
+                <WalletConnectButton />
+              </div>
+              <div className="sm:hidden">
+                <CompactWalletButton />
               </div>
               
               {/* List Asset button - hidden on small mobile, text hidden on medium mobile */}
-              <button className="hidden sm:flex bg-gradient-to-r from-green-500 to-emerald-600 text-white px-2 sm:px-4 py-2 rounded-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-200 items-center gap-2">
+              <button className="hidden sm:flex bg-gradient-to-r from-green-500 to-emerald-600 text-white px-2 sm:px-4 py-2 rounded-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-200 items-center gap-2 h-10">
                 <PlusCircle className="w-4 h-4" />
                 <span className="hidden md:inline">List Asset</span>
               </button>
               
+              {/* Notifications - always visible */}
+              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg relative h-10 w-10 flex items-center justify-center" aria-label="Notifications">
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
+              </button>
+              
               {/* Theme selector - compact on mobile */}
-              <select value={theme} onChange={e => setTheme(e.target.value)} className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-1 sm:px-2 py-2 text-xs sm:text-sm font-medium" aria-label="Theme selector">
+              <select value={theme} onChange={e => setTheme(e.target.value)} className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-1 sm:px-2 py-2 text-xs sm:text-sm font-medium h-10" aria-label="Theme selector">
                 {themes.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
             </div>
@@ -312,84 +318,90 @@ const Web3RWAPlatform = () => {
         </header>
 
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
-          {/* Stats */}
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[
-              { icon: DollarSign, value: '$847.2M', label: 'Total Value Locked', change: '+12.4% (24h)' },
-              { icon: Activity, value: '$156.8M', label: '24h Volume', change: '+8.7% (24h)' },
-              { icon: Coins, value: '14.7%', label: 'Avg APY', change: 'Across all pools' },
-              { icon: Users, value: '28,456', label: 'Active Users', change: '+5.2% (7d)' },
-            ].map((stat, i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="bg-blue-100 dark:bg-blue-950 w-10 h-10 rounded-lg flex items-center justify-center"><stat.icon className="w-5 h-5 text-blue-600" /></div>
-                  <TrendingUp className="w-4 h-4 text-green-500" />
+          {activeTab === 'staking' ? (
+            <StakingPage />
+          ) : (
+            <>
+              {/* Stats */}
+              <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {[
+                  { icon: DollarSign, value: '$847.2M', label: 'Total Value Locked', change: '+12.4% (24h)' },
+                  { icon: Activity, value: '$156.8M', label: '24h Volume', change: '+8.7% (24h)' },
+                  { icon: Coins, value: '14.7%', label: 'Avg APY', change: 'Across all pools' },
+                  { icon: Users, value: '28,456', label: 'Active Users', change: '+5.2% (7d)' },
+                ].map((stat, i) => (
+                  <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="bg-blue-100 dark:bg-blue-950 w-10 h-10 rounded-lg flex items-center justify-center"><stat.icon className="w-5 h-5 text-blue-600" /></div>
+                      <TrendingUp className="w-4 h-4 text-green-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{stat.value}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{stat.label}</p>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">{stat.change}</p>
+                  </div>
+                ))}
+              </section>
+
+              {/* Search & filters */}
+              <section className="flex flex-col lg:flex-row gap-4 mb-6">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input type="text" placeholder="Search tokenized assets, pools, or projects..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900" />
                 </div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{stat.value}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{stat.label}</p>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">{stat.change}</p>
-              </div>
-            ))}
-          </section>
+                <div className="flex gap-2">
+                  <button className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-3 rounded-lg flex items-center gap-2 transition-all"><Filter className="w-4 h-4" />Filters</button>
+                  <button className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-3 rounded-lg flex items-center gap-2 transition-all"><BarChart3 className="w-4 h-4" />Analytics</button>
+                </div>
+              </section>
 
-          {/* Search & filters */}
-          <section className="flex flex-col lg:flex-row gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input type="text" placeholder="Search tokenized assets, pools, or projects..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900" />
-            </div>
-            <div className="flex gap-2">
-              <button className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-3 rounded-lg flex items-center gap-2 transition-all"><Filter className="w-4 h-4" />Filters</button>
-              <button className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-3 rounded-lg flex items-center gap-2 transition-all"><BarChart3 className="w-4 h-4" />Analytics</button>
-            </div>
-          </section>
+              {/* Asset type filter */}
+              <section className="mb-8">
+                <div className="flex flex-wrap gap-2">
+                  {assetTypes.map(type => {
+                    const Icon = type.icon;
+                    return (
+                      <button key={type.id} onClick={() => setSelectedAssetType(type.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${selectedAssetType === type.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}>
+                        <Icon className="w-4 h-4" />{type.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
 
-          {/* Asset type filter */}
-          <section className="mb-8">
-            <div className="flex flex-wrap gap-2">
-              {assetTypes.map(type => {
-                const Icon = type.icon;
-                return (
-                  <button key={type.id} onClick={() => setSelectedAssetType(type.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${selectedAssetType === type.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}>
-                    <Icon className="w-4 h-4" />{type.label}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+              {/* Asset grid */}
+              <section className="mb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Tokenized Assets</h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Sort by:</span>
+                    <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm">
+                      <option value="apy">Highest APY</option>
+                      <option value="tvl">Highest TVL</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {sortedAssets.length ? sortedAssets.map(token => <TokenCard key={token.id} token={token} />) : <div className="col-span-full text-center text-gray-500 dark:text-gray-400 py-12">No assets found.</div>}
+                </div>
+              </section>
 
-          {/* Asset grid */}
-          <section className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Tokenized Assets</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Sort by:</span>
-                <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm">
-                  <option value="apy">Highest APY</option>
-                  <option value="tvl">Highest TVL</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {sortedAssets.length ? sortedAssets.map(token => <TokenCard key={token.id} token={token} />) : <div className="col-span-full text-center text-gray-500 dark:text-gray-400 py-12">No assets found.</div>}
-            </div>
-          </section>
-
-          {/* Quick actions */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { icon: ArrowUpDown, title: 'DEX Trading', desc: 'Swap RWA tokens with minimal slippage', from: 'from-blue-600 to-purple-600' },
-              { icon: Droplets, title: 'Liquidity Pools', desc: 'Provide liquidity and earn fees', from: 'from-green-600 to-emerald-600' },
-              { icon: Lock, title: 'Yield Farming', desc: 'Stake LP tokens for maximum yields', from: 'from-orange-600 to-red-600' },
-            ].map(card => (
-              <div key={card.title} className={`bg-gradient-to-r ${card.from} rounded-xl p-6 text-white`}>
-                <div className="flex items-center justify-between mb-4"><card.icon className="w-8 h-8" /><ArrowRight className="w-5 h-5" /></div>
-                <h3 className="text-xl font-bold mb-2">{card.title}</h3>
-                <p className="mb-4">{card.desc}</p>
-                <button className="gradient-card-button px-4 py-2 rounded-lg font-semibold transition-all">Start</button>
-              </div>
-            ))}
-          </section>
+              {/* Quick actions */}
+              <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  { icon: ArrowUpDown, title: 'DEX Trading', desc: 'Swap RWA tokens with minimal slippage', from: 'from-blue-600 to-purple-600' },
+                  { icon: Droplets, title: 'Liquidity Pools', desc: 'Provide liquidity and earn fees', from: 'from-green-600 to-emerald-600' },
+                  { icon: Lock, title: 'Yield Farming', desc: 'Stake LP tokens for maximum yields', from: 'from-orange-600 to-red-600' },
+                ].map(card => (
+                  <div key={card.title} className={`bg-gradient-to-r ${card.from} rounded-xl p-6 text-white`}>
+                    <div className="flex items-center justify-between mb-4"><card.icon className="w-8 h-8" /><ArrowRight className="w-5 h-5" /></div>
+                    <h3 className="text-xl font-bold mb-2">{card.title}</h3>
+                    <p className="mb-4">{card.desc}</p>
+                    <button className="gradient-card-button px-4 py-2 rounded-lg font-semibold transition-all">Start</button>
+                  </div>
+                ))}
+              </section>
+            </>
+          )}
         </main>
       </div>
 
